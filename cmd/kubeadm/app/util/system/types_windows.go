@@ -38,7 +38,7 @@ var DefaultSysSpec = SysSpec{
 	Cgroups: []string{},
 	RuntimeSpec: RuntimeSpec{
 		DockerSpec: &DockerSpec{
-			Version:     []string{`17\.03\..*`}, //Requires [17.03] or later
+			Version:     []string{`17\.09\..*`}, //Requires [17.03] or later
 			GraphDriver: []string{"windowsfilter"},
 		},
 	},
