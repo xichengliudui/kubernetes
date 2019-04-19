@@ -108,6 +108,7 @@ func (kl *Kubelet) cleanupOrphanedPodDirs(pods []*v1.Pod, runningPods []*kubecon
 	orphanRemovalErrors := []error{}
 	orphanVolumeErrors := []error{}
 
+poodLoop:
 	for _, uid := range found {
 		if allPods.Has(string(uid)) {
 			continue
@@ -127,8 +128,24 @@ func (kl *Kubelet) cleanupOrphanedPodDirs(pods []*v1.Pod, runningPods []*kubecon
 			continue
 		}
 		if len(volumePaths) > 0 {
-			orphanVolumeErrors = append(orphanVolumeErrors, fmt.Errorf("Orphaned pod %q found, but volume paths are still present on disk", uid))
-			continue
+			for _, volumePath := range volumePaths {
+				isNotMounted, err := kl.mounter.IsNotMountPoint(volumePath)
+				if err != nil {
+					orphanVolumeErrors = append(orphanVolumeErrors, fmt.Errorf("Orphaned pod %q found, but unable to evaluate mount points: %v", uid, err))
+					continue poodLoop
+				}
+				if isNotMounted {
+					// // Attempt to remove volume
+					if err := os.Remove(volumePath); err != nil {
+						orphanVolumeErrors = append(orphanVolumeErrors, fmt.Errorf("Orphaned pod %q found, but the delete volume path failed and is not removable: %v", uid, err))
+						continue poodLoop
+					}
+				} else {
+					orphanVolumeErrors = append(orphanVolumeErrors, fmt.Errorf("Orphaned pod %q found, but still has mounted volumes", uid))
+					continue poodLoop
+				}
+			}
+
 		}
 
 		// If there are any volume-subpaths, do not cleanup directories
